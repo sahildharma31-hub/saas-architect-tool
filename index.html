@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SaaS Architect AI - API & Database Generator</title>
+    <style>
+        :root { --primary: #6366f1; --bg: #0b0f19; --card: #1e293b; --text: #f8fafc; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 16px; display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 650px; background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        h1 { font-size: 1.4rem; color: #818cf8; text-align: center; margin-top: 0; }
+        p { font-size: 0.85rem; color: #94a3b8; text-align: center; margin-bottom: 20px; }
+        .license-bar { background: #0f172a; padding: 12px; border-radius: 8px; border: 1px solid #334155; margin-bottom: 20px; }
+        .input-group { display: flex; gap: 8px; }
+        input, textarea { width: 100%; padding: 10px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 6px; box-sizing: border-box; font-size: 0.9rem; }
+        button { background: var(--primary); color: white; border: none; padding: 10px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; white-space: nowrap; }
+        button:hover { background: #4f46e5; }
+        .status { margin-top: 8px; font-size: 0.8rem; color: #cbd5e1; }
+        .badge { background: #22c55e; color: black; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; }
+        .output-box { margin-top: 16px; background: #090d16; padding: 14px; border-radius: 8px; border: 1px solid #1e293b; overflow-x: auto; font-family: monospace; font-size: 0.85rem; white-space: pre-wrap; min-height: 120px; color: #38bdf8; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>⚡ SaaS Architect AI</h1>
+    <p>Generate SQL schemas, REST API routes & React hooks in seconds.</p>
+    
+    <!-- Gumroad License Verification Section -->
+    <div class="license-bar">
+        <div class="input-group">
+            <input type="text" id="licenseKey" placeholder="Enter Gumroad Pro License Key">
+            <button onclick="verifyLicense()">Unlock Pro</button>
+        </div>
+        <div class="status" id="licenseStatus">Status: <b>Free Mode</b> (Basic SQL Schema Only)</div>
+    </div>
+
+    <!-- User Input -->
+    <label style="font-size: 0.85rem; font-weight: bold;">Describe your App / Feature Idea:</label>
+    <textarea id="appIdea" rows="3" placeholder="e.g. A subscription-based habit tracker with daily streaks..." style="margin-top: 6px;"></textarea>
+    
+    <button onclick="generateArchitecture()" style="width:100%; margin-top: 10px; padding: 12px;">Build Architecture Code</button>
+
+    <!-- Output Terminal -->
+    <div class="output-box" id="outputCode">// Generated Code & DB Schema will appear here...</div>
+</div>
+
+<script>
+    let isPro = false;
+
+    async function verifyLicense() {
+        const key = document.getElementById('licenseKey').value.trim();
+        const status = document.getElementById('licenseStatus');
+
+        if (!key) {
+            alert('Please enter a license key');
+            return;
+        }
+
+        status.innerText = "Verifying with Gumroad...";
+
+        try {
+            const res = await fetch('https://api.gumroad.com/v2/licenses/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    product_id: 'YOUR_GUMROAD_PRODUCT_ID', // Replace with your Gumroad Product ID
+                    license_key: key
+                })
+            });
+
+            const data = await res.json();
+            if (data.success && !data.purchase.refunded) {
+                isPro = true;
+                status.innerHTML = 'Status: <span class="badge">PRO UNLOCKED</span> (Full SQL + Express + React output unlocked)';
+            } else {
+                status.innerText = 'Invalid or refunded license key.';
+                isPro = false;
+            }
+        } catch (err) {
+            // Test Mode fallback key for demonstration
+            if (key === "DEMO-PRO-2026") {
+                isPro = true;
+                status.innerHTML = 'Status: <span class="badge">PRO UNLOCKED</span> (Test Mode Active)';
+            } else {
+                status.innerText = "Network error verifying key.";
+            }
+        }
+    }
+
+    async function generateArchitecture() {
+        const idea = document.getElementById('appIdea').value.trim();
+        const output = document.getElementById('outputCode');
+
+        if (!idea) {
+            output.innerText = "Please describe an app idea first.";
+            return;
+        }
+
+        output.innerText = "Architecting backend structures...";
+
+        const apiKey = "YOUR_GEMINI_API_KEY"; // Insert your Gemini API key or proxy backend
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+
+        // Dynamic prompt engineering based on Free vs Pro state
+        let systemInstructions = "";
+        if (isPro) {
+            systemInstructions = `You are a Principal Software Architect. Provide: 
+1. PostgreSQL SQL Schema (CREATE TABLE statements with primary keys and foreign keys).
+2. Express.js REST API Endpoint route handlers (GET, POST, PUT).
+3. React custom hook (useFetch data fetcher).
+Keep code concise and clean.`;
+        } else {
+            systemInstructions = `You are a database architect. Output ONLY basic PostgreSQL CREATE TABLE statements. Do not provide API routes or frontend hooks unless upgraded to Pro.`;
+        }
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{ text: `${systemInstructions}\n\nApp Idea: ${idea}` }]
+                    }]
+                })
+            });
+
+            const data = await response.json();
+            let resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated.";
+            
+            if (!isPro) {
+                resultText += "\n\n/* 🔒 Upgrade to PRO on Gumroad to unlock Node.js Express Endpoints & React Hooks! */";
+            }
+
+            output.innerText = resultText;
+        } catch (e) {
+            output.innerText = "Error: " + e.message;
+        }
+    }
+</script>
+
+</body>
+</html>
